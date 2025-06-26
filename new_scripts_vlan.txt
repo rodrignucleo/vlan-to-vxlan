@@ -447,10 +447,24 @@ int e1/1
  no shut
 
 int e1/0
- description Connected to PC in VLAN 40
- switchport mode access
- switchport access vlan 40
- spanning-tree portfast 
+ description Link to Switch-Access-41
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+int e1/2
+ description Link to Switch-Access-42
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+int e1/3
+ description Link to Switch-Access-39
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 end
@@ -527,6 +541,20 @@ int e0/3
 
 int e1/0
  description Link to Switch-23
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+int e1/1
+ description Link to Switch-Access-42
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+int e1/2
+ description Link to Switch-Access-41
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
@@ -928,7 +956,7 @@ int e1/3
 
 int e2/0
  switchport mode access
- switchport access vlan 40
+ switchport access vlan 30
  spanning-tree portfast
  no shut
 
@@ -1017,6 +1045,272 @@ spanning-tree portfast
 no shut
 
 int e0/2
+switchport mode access
+switchport access vlan 50
+spanning-tree portfast
+no shut
+
+end
+wr
+
+/*********************************/
+    Configuracao Switch-Access-39
+/*********************************/
+en
+conf t
+hostname Switch-Access-39
+
+vlan 10
+ name Finance
+vlan 20
+ name IT
+vlan 30
+ name Electric
+vlan 40
+ name HR
+vlan 50
+ name MARKETING
+
+! Criação das SVIs para cada VLAN para atuar como Relay Agent
+int Vlan10
+ description SVI for VLAN 10 (Finance)
+ ip address 192.168.10.64 255.255.255.0 
+ ip helper-address 192.168.10.2
+ ip helper-address 192.168.10.3
+ no shut
+
+int Vlan20
+ description SVI for VLAN 20 (IT)
+ ip address 192.168.20.64 255.255.255.0
+ ip helper-address 192.168.20.2
+ ip helper-address 192.168.20.3
+ no shut
+
+int Vlan30
+ description SVI for VLAN 30 (Electric)
+ ip address 192.168.30.64 255.255.255.0
+ ip helper-address 192.168.30.2
+ ip helper-address 192.168.30.3
+ no shut
+
+int Vlan40
+ description SVI for VLAN 40 (HR)
+ ip address 192.168.40.64 255.255.255.0
+ ip helper-address 192.168.40.2
+ ip helper-address 192.168.40.3
+ no shut
+
+int Vlan50
+ description SVI for VLAN 50 (MARKETING)
+ ip address 192.168.50.64 255.255.255.0
+ ip helper-address 192.168.50.2
+ ip helper-address 192.168.50.3
+ no shut
+
+! Uplink para Switch-Distr-21
+int e0/0
+ description Uplink to Switch-Distr-21
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Link para Switch-Access-42
+int e0/2
+ description Link to Switch-Access-42
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Configuração do Spanning Tree Protocol (RSTP)
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,40,50 priority 20480  
+
+! Configuração das Portas de Acesso (para PCs)
+int e0/1
+switchport mode access
+switchport access vlan 50
+spanning-tree portfast
+no shut
+
+end
+wr
+
+/*********************************/
+    Configuracao Switch-Access-41
+/*********************************/
+en
+conf t
+hostname Switch-Access-41
+
+vlan 10
+ name Finance
+vlan 20
+ name IT
+vlan 30
+ name Electric
+vlan 40
+ name HR
+vlan 50
+ name MARKETING
+
+! Criação das SVIs para cada VLAN para atuar como Relay Agent
+int Vlan10
+ description SVI for VLAN 10 (Finance)
+ ip address 192.168.10.74 255.255.255.0 
+ ip helper-address 192.168.10.2
+ ip helper-address 192.168.10.3
+ no shut
+
+int Vlan20
+ description SVI for VLAN 20 (IT)
+ ip address 192.168.20.74 255.255.255.0
+ ip helper-address 192.168.20.2
+ ip helper-address 192.168.20.3
+ no shut
+
+int Vlan30
+ description SVI for VLAN 30 (Electric)
+ ip address 192.168.30.74 255.255.255.0
+ ip helper-address 192.168.30.2
+ ip helper-address 192.168.30.3
+ no shut
+
+int Vlan40
+ description SVI for VLAN 40 (HR)
+ ip address 192.168.40.74 255.255.255.0
+ ip helper-address 192.168.40.2
+ ip helper-address 192.168.40.3
+ no shut
+
+int Vlan50
+ description SVI for VLAN 50 (MARKETING)
+ ip address 192.168.50.74 255.255.255.0
+ ip helper-address 192.168.50.2
+ ip helper-address 192.168.50.3
+ no shut
+
+! Uplink para Switch-Distr-21
+int e0/0
+ description Uplink to Switch-Distr-21
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Uplink para Switch-Distr-22
+int e0/1
+ description Uplink to Switch-Distr-22
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Configuração do Spanning Tree Protocol (RSTP)
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,40,50 priority 20480  
+
+! Configuração das Portas de Acesso (para PCs)
+int e0/2
+switchport mode access
+switchport access vlan 50
+spanning-tree portfast
+no shut
+
+end
+wr
+
+/*********************************/
+    Configuracao Switch-Access-42
+/*********************************/
+en
+conf t
+hostname Switch-Access-42
+
+vlan 10
+ name Finance
+vlan 20
+ name IT
+vlan 30
+ name Electric
+vlan 40
+ name HR
+vlan 50
+ name MARKETING
+
+! Criação das SVIs para cada VLAN para atuar como Relay Agent
+int Vlan10
+ description SVI for VLAN 10 (Finance)
+ ip address 192.168.10.54 255.255.255.0 
+ ip helper-address 192.168.10.2
+ ip helper-address 192.168.10.3
+ no shut
+
+int Vlan20
+ description SVI for VLAN 20 (IT)
+ ip address 192.168.20.54 255.255.255.0
+ ip helper-address 192.168.20.2
+ ip helper-address 192.168.20.3
+ no shut
+
+int Vlan30
+ description SVI for VLAN 30 (Electric)
+ ip address 192.168.30.54 255.255.255.0
+ ip helper-address 192.168.30.2
+ ip helper-address 192.168.30.3
+ no shut
+
+int Vlan40
+ description SVI for VLAN 40 (HR)
+ ip address 192.168.40.54 255.255.255.0
+ ip helper-address 192.168.40.2
+ ip helper-address 192.168.40.3
+ no shut
+
+int Vlan50
+ description SVI for VLAN 50 (MARKETING)
+ ip address 192.168.50.54 255.255.255.0
+ ip helper-address 192.168.50.2
+ ip helper-address 192.168.50.3
+ no shut
+
+! Uplink para Switch-Distr-21
+int e0/0
+ description Uplink to Switch-Distr-21
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Uplink para Switch-Distr-22
+int e0/1
+ description Uplink to Switch-Distr-22
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Link para Switch-Access-39
+int e1/0
+ description Link to Switch-Access-39
+ switchport trunk encap dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
+ no shut
+
+! Configuração do Spanning Tree Protocol (RSTP)
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,40,50 priority 20480  
+
+! Configuração das Portas de Acesso (para PCs)
+int e0/2
+switchport mode access
+switchport access vlan 40
+spanning-tree portfast
+no shut
+
+int e0/3
 switchport mode access
 switchport access vlan 50
 spanning-tree portfast
