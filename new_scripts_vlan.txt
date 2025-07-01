@@ -395,6 +395,7 @@ int Port-channel2
  description Uplink to Switch-Core-21
  switchport trunk encap dot1q
  switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 int Ethernet0/1
@@ -409,6 +410,7 @@ int Port-channel3
  description Uplink to Switch-Core-22
  switchport trunk encap dot1q
  switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 interface e0/0
@@ -426,21 +428,21 @@ spanning-tree vlan 10,20,30,40,50 priority 8192
 ! Configuração das Portas de Acesso (para End Devices)
 ! Assumindo que e0/2 e e0/3 são portas de acesso
 int e0/2
- description Link to Switch-ESENorte
+ description Link to Switch-Access-40
  switchport trunk encap dot1q
  switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40
+ switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 int e0/3
- description Link to Switch-ESESul
+ description Link to Switch-Access-30
  switchport trunk encap dot1q
  switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40
+ switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 int e1/1
- description Link to Switch1
+ description Link to Switch-Access-20
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
@@ -526,21 +528,21 @@ spanning-tree vlan 10,20,30,40,50 priority 8192
 
 ! Configuração das Portas de Acesso (para End Devices)
 int e0/1
- description Link to Switch1
+ description Link to Switch-Access-20
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 int e0/3
- description Link to Switch2
+ description Link to Switch-Access-10
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
 int e1/0
- description Link to Switch-23
+ description Link to Switch-Access-50
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
@@ -564,11 +566,11 @@ end
 wr
 
 /***********************************/
-    Configuracao Switch-ESENorte
+    Configuracao Switch-Access-40
 /***********************************/
 en
 conf t
-hostname Switch-ESENorte
+hostname Switch-Access-40
 
 vlan 10
  name Finance
@@ -616,9 +618,9 @@ int e0/0
  switchport trunk allowed vlan 10,20,30,40
  no shut
 
-! Link para Switch-ESESul
+! Link para Switch-Access-30
 int eX/X
- description Link to Switch-ESESul
+ description Link to Switch-Access-30
  switchport trunk encap dot1q
  switchport mode trunk
  no shut
@@ -662,11 +664,11 @@ end
 wr
 
 /***********************************/
-    Configuracao Switch-ESESul
+    Configuracao Switch-Access-30
 /***********************************/
 en
 conf t
-hostname Switch-ESESul
+hostname Switch-Access-30
 
 vlan 10
  name Finance
@@ -685,9 +687,9 @@ int e0/0
  switchport trunk allowed vlan 10,20,30,40
  no shut
 
-! Link para Switch-ESENorte
+! Link para Switch-Access-40
 int eX/X
- description Link to Switch-ESESul
+ description Link to Switch-Access-30
  switchport trunk encap dot1q
  switchport mode trunk
  no shut
@@ -725,11 +727,11 @@ end
 wr
 
 /***********************************/
-    Configuracao Switch1
+    Configuracao Switch-Access-20
 /***********************************/
 en
 conf t
-hostname Switch1
+hostname Switch-Access-20
 
 vlan 10
  name Finance
@@ -794,9 +796,9 @@ int e1/1
  switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
-! Link para Switch2
+! Link para Switch-Access-10
 int e2/2
- description Link to Switch2
+ description Link to Switch-Access-10
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
@@ -842,11 +844,11 @@ wr
 
 
 /**************************/
-    Configuracao Switch2
+    Configuracao Switch-Access-10
 /**************************/
 en
 conf t
-hostname Switch2
+hostname Switch-Access-10
 
 vlan 10
  name Finance
@@ -903,17 +905,17 @@ int e0/0
  switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
-! Link para Switch1
+! Link para Switch-Access-20
 int e1/2
- description Link to Switch1
+ description Link to Switch-Access-20
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
-! Link para Switch-23
+! Link para Switch-Access-50
 int e1/1
- description Link to Switch-23
+ description Link to Switch-Access-50
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
@@ -964,11 +966,11 @@ end
 wr
 
 /**************************/
-    Configuracao Switch-23
+    Configuracao Switch-Access-50
 /**************************/
 en
 conf t
-hostname Switch-23
+hostname Switch-Access-50
 
 vlan 10
  name Finance
@@ -1025,9 +1027,9 @@ int e0/0
  switchport trunk allowed vlan 10,20,30,40,50
  no shut
 
-! Link para Switch2
+! Link para Switch-Access-10
 int e0/3
- description Link to Switch2
+ description Link to Switch-Access-10
  switchport trunk encap dot1q
  switchport mode trunk
  switchport trunk allowed vlan 10,20,30,40,50
