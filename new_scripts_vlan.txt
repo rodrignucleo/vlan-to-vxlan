@@ -243,12 +243,16 @@ int Port-channel1
 ! Configuração das interfaces físicas para o Port-Channel 1
 int e0/0
  description Link to Switch-Core-22
- channel-group 1 mode active 
+ channel-group 1 mode active
+ switchport trunk encap dot1q
+ switchport mode trunk
  no shut
 
 int e0/1
  description Link to Switch-Core-22
  channel-group 1 mode active 
+ switchport trunk encap dot1q
+ switchport mode trunk
  no shut
 
 ! Configuração do Spanning Tree Protocol (RSTP)
@@ -357,12 +361,16 @@ int Port-channel1
 ! Configuração das interfaces físicas para o Port-Channel 1
 int e0/2
  description Link to Switch-Core-21
- channel-group 1 mode active 
+ channel-group 1 mode active
+ switchport trunk encap dot1q
+ switchport mode trunk
  no shut
 
 int e0/3
  description Link to Switch-Core-21
  channel-group 1 mode active 
+ switchport trunk encap dot1q
+ switchport mode trunk
  no shut
 
 ! Configuração do Spanning Tree Protocol (RSTP)
