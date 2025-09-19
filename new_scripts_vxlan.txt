@@ -115,6 +115,14 @@ copy running-config startup-config
     Configuracao Leaf-1
 /************************/
 
+su - root
+vsh
+conf t
+feature bash-shell
+end
+run bash
+vsh
+
 hostname Leaf1
 
 ! 1. Configurar Loopback
@@ -123,22 +131,96 @@ interface loopback0
 
 ! 2. Configurar interfaces físicas para os Spines
 ! Link para o Spine-1
-interface Ethernet1/1
+int e1/1
   no switchport
   ip address 10.0.1.2/30
   ip ospf network point-to-point
   no shutdown
 
 ! Link para o Spine-2
-interface Ethernet1/2
+interface e1/2
   no switchport
   ip address 10.0.3.2/30
   ip ospf network point-to-point
   no shutdown
 
+! INTERFACE L2 PARA O ACCESS-LEAF-1
+interface Ethernet1/3
+  description Link-to-Access-Leaf-1
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 50
+  no shutdown
+
 ! 3. Configurar OSPF
 router ospf 1
   router-id 10.255.255.11
+
+! Configurar BGP para ser peer dos Spines
+router bgp 65000
+  router-id 10.255.255.11
+  neighbor 10.255.255.1 remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community both
+  neighbor 10.255.255.2 remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community both
+
+! 5. MAPEAMENTO VLAN -> VNI (Virtual Network Identifier)
+vlan 50
+  name MARKETING
+  vn-segment 10050
+
+! 6. CONFIGURAR INTERFACE VXLAN (NVE - Network Virtualization Edge)
+interface nve1
+  no shutdown
+  source-interface loopback0
+  host-reachability protocol bgp
+  member vni 10050
+    ingress-replication protocol bgp
+
+! 7. CONFIGURAR ANYCAST GATEWAY (SVI - Switched Virtual Interface)
+interface Vlan50
+  no shutdown
+  ip address 192.168.50.1/24
+  fabric forwarding mode anycast-gateway
+
+copy running-config startup-config
+
+/*****************************/
+    Configuracao Access-Leaf-1
+/*****************************/
+
+hostname AccessLeaf1
+
+! 1. HABILITAR FEATURES BÁSICAS
+feature interface-vlan
+
+! 2. CRIAR A VLAN
+vlan 50
+  name MARKETING
+
+! 3. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+! Conforme a imagem, a porta E2/2 conecta os PCs
+interface Ethernet2/2
+  description PCs-VLAN50-MARKETING
+  switchport
+  switchport mode access
+  switchport access vlan 50
+  spanning-tree port type edge
+  no shutdown
+
+! 4. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+! Conforme a imagem, a porta E2/1 é o uplink
+interface Ethernet2/1
+  description Uplink-to-Leaf-1
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 50
+  no shutdown
+
 
 /***********************************/
     Configuracao Switch-Core-22
