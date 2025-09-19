@@ -202,18 +202,8 @@ feature interface-vlan
 vlan 50
   name MARKETING
 
-! 3. CONFIGURAR PORTA DE ACESSO PARA OS PCs
-! Conforme a imagem, a porta E2/2 conecta os PCs
-interface Ethernet2/2
-  description PCs-VLAN50-MARKETING
-  switchport
-  switchport mode access
-  switchport access vlan 50
-  spanning-tree port type edge
-  no shutdown
-
-! 4. CONFIGURAR PORTA TRUNK PARA O LEAF-1
-! Conforme a imagem, a porta E2/1 é o uplink
+! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+! Porta E2/1 é o uplink
 interface Ethernet2/1
   description Uplink-to-Leaf-1
   switchport
@@ -221,6 +211,15 @@ interface Ethernet2/1
   switchport trunk allowed vlan 50
   no shutdown
 
+! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+! Porta E2/2 conecta os PCs
+interface Ethernet2/2
+  description PCs-VLAN50-MARKETING
+  switchport
+  switchport mode access
+  switchport access vlan 50
+  spanning-tree port type edge
+  no shutdown
 
 /***********************************/
     Configuracao Switch-Core-22
