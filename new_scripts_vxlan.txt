@@ -189,6 +189,139 @@ interface Vlan50
 
 copy running-config startup-config
 
+**********************************************
+# Configuração completa para o Leaf1 em VyOS
+**********************************************
+conf
+
+# 1. Configurações do Sistema
+set system host-name 'Leaf1'
+
+# 2. Configuração das Interfaces de Underlay (Conexão com Spines)
+set interfaces ethernet eth0 address '10.0.1.2/30'
+set interfaces ethernet eth1 address '10.0.3.2/30'
+set interfaces loopback lo address '10.255.255.11/32'
+
+# 3. Configuração do OSPF (Protocolo de Roteamento do Underlay)
+set protocols ospf area 0 network '10.0.1.0/30'
+set protocols ospf area 0 network '10.0.3.0/30'
+set protocols ospf parameters router-id '10.255.255.11'
+
+# 4. Configuração do BGP (Control-Plane do EVPN)
+set protocols bgp system-as '65000'
+set protocols bgp parameters router-id '10.255.255.11'
+set protocols bgp neighbor 10.255.255.1 remote-as '65000'
+set protocols bgp neighbor 10.255.255.1 update-source 'lo'
+set protocols bgp neighbor 10.255.255.1 address-family l2vpn-evpn
+set protocols bgp neighbor 10.255.255.2 remote-as '65000'
+set protocols bgp neighbor 10.255.255.2 update-source 'lo'
+set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
+
+# 5. Configuração do Data-Plane (VXLAN, Bridge e VLAN)
+# Cria a interface VTEP para o VNI 10050
+set interfaces vxlan vxlan10050 vni '10050'
+set interfaces vxlan vxlan10050 source-address '10.255.255.11'
+set interfaces vxlan vxlan10050 port '4789'
+
+# Cria a ponte para a VLAN 50
+set interfaces bridge br50
+
+# Adiciona a porta física (para o Access-Leaf) e a interface VXLAN à ponte
+set interfaces bridge br50 member interface 'eth2'
+set interfaces bridge br50 member interface 'vxlan10050'
+
+# Informa ao BGP para anunciar este VNI
+set protocols bgp address-family l2vpn-evpn vni 10050
+
+# 6. Configuração do Anycast Gateway (SVI)
+set interfaces bridge br50 address '192.168.50.1/24'
+# Opcional, mas recomendado: Definir um MAC Fixo para o Anycast Gateway
+set interfaces bridge br50 hw-id '00:0c:29:00:50:01'
+
+/******
+  DHCP
+*******/
+# 1. Cria o container para a sub-rede DHCP
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24
+
+# 2. Define o gateway que será entregue aos PCs
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 default-router 192.168.50.1
+
+# 3. Define o range de IPs para distribuição
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 start 192.168.50.100
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 stop 192.168.50.200
+
+# 4. Reverter o comando que foi aceite na tentativa anterior
+delete interfaces bridge br50 enable-vlan
+
+# 5. Garantir que a interface física NÃO é membro da ponte
+delete interfaces bridge br50 member interface 'eth2'
+
+# 6. Criar uma sub-interface (VIF) na eth2 para a VLAN 50.
+# Isto cria uma nova interface chamada 'eth2.50'
+set interfaces ethernet eth2 vif 50
+
+# 7. Adicionar a NOVA sub-interface 'eth2.50' como membro da ponte
+set interfaces bridge br50 member interface eth2.50
+
+save
+commit
+
+**********************************************
+# Configuração completa para o Leaf2 em VyOS
+**********************************************
+conf 
+
+# 1. Configurações do Sistema
+set system host-name 'Leaf2'
+
+# 2. Configuração das Interfaces de Underlay (Conexão com Spines)
+set interfaces ethernet eth0 address '10.0.2.2/30'
+set interfaces ethernet eth1 address '10.0.4.2/30'
+set interfaces loopback lo address '10.255.255.12/32'
+
+# 3. Configuração da VLAN e da Ponte (Bridge)
+# Cria a sub-interface na porta física 'eth2' para receber tráfego com tag da VLAN 50
+set interfaces ethernet eth2 vif 50
+
+# Cria a ponte
+set interfaces bridge br50
+
+# Adiciona a sub-interface da VLAN e a interface VXLAN à ponte
+set interfaces bridge br50 member interface eth2.50
+set interfaces bridge br50 member interface 'vxlan10050'
+
+# 4. Configuração do Anycast Gateway (SVI) na Ponte
+set interfaces bridge br50 address '192.168.50.1/24'
+set interfaces bridge br50 hw-id '00:0c:29:00:50:01'
+
+# 5. Configuração do Data-Plane VXLAN
+set interfaces vxlan vxlan10050 vni '10050'
+set interfaces vxlan vxlan10050 source-address '10.255.255.12'
+set interfaces vxlan vxlan10050 port '4789'
+
+# 6. Configuração do OSPF (Underlay)
+set protocols ospf area 0 network '10.0.2.0/30'
+set protocols ospf area 0 network '10.0.4.0/30'
+set protocols ospf parameters router-id '10.255.255.12'
+
+# 7. Configuração do BGP (Control-Plane EVPN)
+set protocols bgp system-as '65000'
+set protocols bgp parameters router-id '10.255.255.12'
+set protocols bgp neighbor 10.255.255.1 remote-as '65000'
+set protocols bgp neighbor 10.255.255.1 update-source 'lo'
+set protocols bgp neighbor 10.255.255.1 address-family l2vpn-evpn
+set protocols bgp neighbor 10.255.255.2 remote-as '65000'
+set protocols bgp neighbor 10.255.255.2 update-source 'lo'
+set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
+set protocols bgp address-family l2vpn-evpn vni 10050
+
+# 8. Configuração do Servidor DHCP (SEGUNDA METADE DO RANGE)
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 default-router 192.168.50.1
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 start 192.168.50.150
+set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 stop 192.168.50.200
+
 /*****************************/
     Configuracao Access-Leaf-1
 /*****************************/
@@ -221,1265 +354,35 @@ interface Ethernet2/2
   spanning-tree port type edge
   no shutdown
 
-/***********************************/
-    Configuracao Switch-Core-22
-/***********************************/
 
-en
-conf t
-hostname Switch-Core-22
+/*****************************/
+    Configuracao Access-Leaf-2
+/*****************************/
 
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
+hostname AccessLeaf2
+
+! 1. HABILITAR FEATURES BÁSICAS
+feature interface-vlan
+
+! 2. CRIAR A VLAN
 vlan 50
- name MARKETING
-
-! Configuração do Port-Channel para Switch-Core-21
-! Interface lógica que agrega as portas físicas
-
-int Port-channel1
- description Link to Switch-Core-21
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Configuração das interfaces físicas para o Port-Channel 1
-int e0/2
- description Link to Switch-Core-21
- channel-group 1 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-int e0/3
- description Link to Switch-Core-21
- channel-group 1 mode active 
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 4096
-
-! Port-Channel 2 para Switch-Distr-21
-int Port-channel2
- description Downlink to Switch-Distr-21 Po2
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Interface física para Port-Channel 2 (e1/1 em Core-21)
-int e1/1
- description Link to Switch-Distr-21 (Po2)
- channel-group 2 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Port-Channel 3 para Switch-Distr-22
-int Port-channel3
- description Downlink to Switch-Distr-22 Po3
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Interface física para Port-Channel 3 (e1/1 em Core-21)
-int e1/0
- description Link to Switch-Distr-22 (Po3)
- channel-group 3 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Port-Channel 5 para Switch-Distr-46
-int Port-channel5
- description Downlink to Switch-Distr-46 Po5
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Interface física para Port-Channel 5
-int e0/0
- description Link to Switch-Distr-46 (Po5)
- channel-group 5 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Port-Channel 4 para Switch-Distr-47
-int Port-channel4
- description Downlink to Switch-Distr-47 Po4
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Interface física para Port-Channel 4
-int e1/2
- description Link to Switch-Distr-47 (Po4)
- channel-group 4 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Trunk para o core (Router-11) e (Router-12)
-int e0/1
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Distr-21
-/***********************************/
-en
-conf t
-hostname Switch-Distr-21
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Port-Channel 2 para Switch-Core-21
-int Port-channel2
- description Uplink to Switch-Core-21
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int Ethernet0/1
- description Link to Switch-Core-21
- channel-group 2 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- no shut
-
-! Port-Channel 3 para Switch-Core-22
-int Port-channel3
- description Uplink to Switch-Core-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-interface e0/0
- description Link to Switch-Core-22
- channel-group 3 mode active
- switchport trunk encap dot1q 
- switchport mode trunk
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 8192
-
-
-! Configuração das Portas de Acesso (para End Devices)
-! Assumindo que e0/2 e e0/3 são portas de acesso
-int e0/2
- description Link to Switch-Access-20
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/3
- description Link to Switch-Access-10
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/1
- description Link to Switch-Access-50
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/0
- description Link to Switch-Access-41
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Distr-22
-/***********************************/
-en
-conf t
-hostname Switch-Distr-22
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Port-Channel 2 para Switch-Core-22
-int Port-channel2
- description Uplink to Switch-Core-22 Po2
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/0
- description Link to Switch-Core-22 (Po2)
- channel-group 2 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Port-Channel 3 para Switch-Core-21
-int Port-channel3
- description Uplink to Switch-Core-21 Po3
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/2
- description Link to Switch-Core-21 (Po3)
- channel-group 3 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 8192
-
-! Configuração das Portas de Acesso (para End Devices)
-int e0/1
- description Link to Switch-Access-20
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/3
- description Link to Switch-Access-10
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/0
- description Link to Switch-Access-50
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/2
- description Link to Switch-Access-41
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Distr-46
-/***********************************/
-en
-conf t
-hostname Switch-Distr-46
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Port-Channel 5 para Switch-Core-21
-int Port-channel5
- description Uplink to Switch-Core-21 Po5
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/0
- description Link to Switch-Core-21 (Po5)
- channel-group 5 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Port-Channel 4 para Switch-Core-22
-int Port-channel4
- description Uplink to Switch-Core-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-interface e0/1
- description Link to Switch-Core-22
- channel-group 4 mode active
- switchport trunk encap dot1q 
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 8192
-
-
-! Configuração das Portas de Acesso (para End Devices)
-! Assumindo que e0/2 e e0/3 são portas de acesso
-int e0/2
- description Link to Switch-Access-39
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/3
- description Link to Switch-Access-42
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/0
- description Link to Switch-Access-40
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/1
- description Link to Switch-Access-30
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Distr47
-/***********************************/
-en
-conf t
-hostname Switch-Distr-47
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Port-Channel 4 para Switch-Core-21
-int Port-channel4
- description Uplink to Switch-Core-21 Po4
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/0
- description Link to Switch-Core-21 (Po4)
- channel-group 4 mode active
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Port-Channel 5 para Switch-Core-22
-int Port-channel5
- description Uplink to Switch-Core-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/1
- description Link to Switch-Core-22
- channel-group 5 mode active
- switchport trunk encap dot1q 
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 8192
-
-
-! Configuração das Portas de Acesso (para End Devices)
-! Assumindo que e0/2 e e0/3 são portas de acesso
-int e0/2
- description Link to Switch-Access-39
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e0/3
- description Link to Switch-Access-42
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/0
- description Link to Switch-Access-40
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-int e1/1
- description Link to Switch-Access-30
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Access-40
-/***********************************/
-en
-conf t
-hostname Switch-Access-40
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.4 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-interface Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.4 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-interface Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.4 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-interface Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.4 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-! Uplink para Switch-Distr-46
-int e0/0
- description Uplink to Switch-Distr-46
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-47
-int e1/2
- description Uplink to Switch-Distr-47
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/3
-switchport mode access
-switchport access vlan 10
-spanning-tree portfast
-no shut
-
-int e0/2
-switchport mode access
-switchport access vlan 20
-spanning-tree portfast
-no shut
-
-int e1/0
-switchport mode access
-switchport access vlan 30
-spanning-tree portfast
-no shut
-
-int e1/1
-switchport mode access
-switchport access vlan 30
-spanning-tree portfast
-no shut
-
-int e0/1
- switchport mode access
- switchport access vlan 40
- spanning-tree portfast
- no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Access-30
-/***********************************/
-en
-conf t
-hostname Switch-Access-30
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-
-! Uplink para Switch-Distr-46
-int e0/0
- description Uplink to Switch-Distr-46
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-47
-int e1/1
- description Uplink to Switch-Distr-47
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/3
-switchport mode access
-switchport access vlan 10
-spanning-tree portfast
-no shut
-
-int e0/2
-switchport mode access
-switchport access vlan 20
-spanning-tree portfast
-no shut
-
-int e1/0
-switchport mode access
-switchport access vlan 30
-spanning-tree portfast
-no shut
-
-int e0/1
-switchport mode access
-switchport access vlan 40
-spanning-tree portfast
-no shut
-
-end
-wr
-
-/***********************************/
-    Configuracao Switch-Access-20
-/***********************************/
-en
-conf t
-hostname Switch-Access-20
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.24 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-interface Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.24 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-interface Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.24 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-interface Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.24 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-interface Vlan50
- description SVI for VLAN 50 (MARKETING)
- ip address 192.168.50.24 255.255.255.0
- ip helper-address 192.168.50.2
- ip helper-address 192.168.50.3
- no shut
-
-! Uplink para Switch-Distr-21
-int e0/0
- description Uplink to Switch-Distr-21
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-22
-int e1/1
- description Uplink to Switch-Distr-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-10
-int e2/2
- description Link to Switch-Access-10
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int range e0/1-2
-switchport mode access
-switchport access vlan 10
-spanning-tree portfast
-no shut
-
-int e0/3
-switchport mode access
-switchport access vlan 20
-spanning-tree portfast
-no shut
-
-int e1/0
-switchport mode access
-switchport access vlan 20
-spanning-tree portfast
-no shut
-
-int range e2/0-1
-switchport mode access
-switchport access vlan 30
-spanning-tree portfast
-no shut
-
-int range e1/2-3
- switchport mode access
- switchport access vlan 40
- spanning-tree portfast
- no shut
-
-end
-wr
-
-
-/**************************/
-    Configuracao Switch-Access-10
-/**************************/
-en
-conf t
-hostname Switch-Access-10
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.34 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-int Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.34 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-int Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.34 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-int Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.34 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-int Vlan50
- description SVI for VLAN 50 (MARKETING)
- ip address 192.168.50.34 255.255.255.0
- ip helper-address 192.168.50.2
- ip helper-address 192.168.50.3
- no shut
-
-! Uplink para Switch-Distr-22
-int e0/0
- description Uplink to Switch-Distr-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-22
-int e1/1
- description Uplink to Switch-Distr-21
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-20
-int e1/2
- description Link to Switch-Access-20
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-50
-int e1/1
- description Link to Switch-Access-50
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/3
-switchport mode access
-switchport access vlan 10
-spanning-tree portfast
-no shut
-
-int e1/0
-switchport mode access
-switchport access vlan 10
-spanning-tree portfast
-no shut
-
-int range e0/1-2
-switchport mode access
-switchport access vlan 20
-spanning-tree portfast
-no shut
-
-int range e2/1-2
-switchport mode access
-switchport access vlan 40
-spanning-tree portfast
-no shut
-
-int e1/3
- switchport mode access
- switchport access vlan 40
- spanning-tree portfast
- no shut
-
-int e2/0
- switchport mode access
- switchport access vlan 30
- spanning-tree portfast
- no shut
-
-end
-wr
-
-/**************************/
-    Configuracao Switch-Access-50
-/**************************/
-en
-conf t
-hostname Switch-Access-50
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.44 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-interface Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.44 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-interface Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.44 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-interface Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.44 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-interface Vlan50
- description SVI for VLAN 50 (MARKETING)
- ip address 192.168.50.44 255.255.255.0
- ip helper-address 192.168.50.2
- ip helper-address 192.168.50.3
- no shut
-
-! Uplink para Switch-Distr-22
-int e0/0
- description Uplink to Switch-Distr-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-21
-int e0/3
- description Uplink to Switch-Distr-21
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-10
-int e0/3
- description Link to Switch-Access-10
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-41
-int e1/0
- description Link to Switch-Access-41
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/1
-switchport mode access
-switchport access vlan 30
-spanning-tree portfast
-no shut
-
-int e0/2
-switchport mode access
-switchport access vlan 50
-spanning-tree portfast
-no shut
-
-end
-wr
-
-/*********************************/
-    Configuracao Switch-Access-39
-/*********************************/
-en
-conf t
-hostname Switch-Access-39
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.64 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-int Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.64 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-int Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.64 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-int Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.64 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-int Vlan50
- description SVI for VLAN 50 (MARKETING)
- ip address 192.168.50.64 255.255.255.0
- ip helper-address 192.168.50.2
- ip helper-address 192.168.50.3
- no shut
-
-! Uplink para Switch-Distr-46
-int e0/0
- description Uplink to Switch-Distr-46
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-47
-int e0/2
- description Uplink to Switch-Distr-47
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-42
-int e0/2
- description Link to Switch-Access-42
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/1
-switchport mode access
-switchport access vlan 50
-spanning-tree portfast
-no shut
-
-end
-wr
-
-/*********************************/
-    Configuracao Switch-Access-41
-/*********************************/
-en
-conf t
-hostname Switch-Access-41
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.74 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-int Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.74 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-int Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.74 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-int Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.74 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-int Vlan50
- description SVI for VLAN 50 (MARKETING)
- ip address 192.168.50.74 255.255.255.0
- ip helper-address 192.168.50.2
- ip helper-address 192.168.50.3
- no shut
-
-! Uplink para Switch-Distr-21
-int e0/0
- description Uplink to Switch-Distr-21
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-22
-int e0/1
- description Uplink to Switch-Distr-22
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-50
-int e0/3
- description Link to Switch-Access-50
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/2
-switchport mode access
-switchport access vlan 50
-spanning-tree portfast
-no shut
-
-end
-wr
-
-/*********************************/
-    Configuracao Switch-Access-42
-/*********************************/
-en
-conf t
-hostname Switch-Access-42
-
-vlan 10
- name Finance
-vlan 20
- name IT
-vlan 30
- name Electric
-vlan 40
- name HR
-vlan 50
- name MARKETING
-
-! Criação das SVIs para cada VLAN para atuar como Relay Agent
-int Vlan10
- description SVI for VLAN 10 (Finance)
- ip address 192.168.10.54 255.255.255.0 
- ip helper-address 192.168.10.2
- ip helper-address 192.168.10.3
- no shut
-
-int Vlan20
- description SVI for VLAN 20 (IT)
- ip address 192.168.20.54 255.255.255.0
- ip helper-address 192.168.20.2
- ip helper-address 192.168.20.3
- no shut
-
-int Vlan30
- description SVI for VLAN 30 (Electric)
- ip address 192.168.30.54 255.255.255.0
- ip helper-address 192.168.30.2
- ip helper-address 192.168.30.3
- no shut
-
-int Vlan40
- description SVI for VLAN 40 (HR)
- ip address 192.168.40.54 255.255.255.0
- ip helper-address 192.168.40.2
- ip helper-address 192.168.40.3
- no shut
-
-int Vlan50
- description SVI for VLAN 50 (MARKETING)
- ip address 192.168.50.54 255.255.255.0
- ip helper-address 192.168.50.2
- ip helper-address 192.168.50.3
- no shut
-
-! Uplink para Switch-Distr-46
-int e0/0
- description Uplink to Switch-Distr-46
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Uplink para Switch-Distr-47
-int e0/1
- description Uplink to Switch-Distr-47
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Link para Switch-Access-39
-int e1/0
- description Link to Switch-Access-39
- switchport trunk encap dot1q
- switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50
- no shut
-
-! Configuração do Spanning Tree Protocol (RSTP)
-spanning-tree mode rapid-pvst
-spanning-tree vlan 10,20,30,40,50 priority 20480  
-
-! Configuração das Portas de Acesso (para PCs)
-int e0/2
-switchport mode access
-switchport access vlan 40
-spanning-tree portfast
-no shut
-
-int e0/3
-switchport mode access
-switchport access vlan 50
-spanning-tree portfast
-no shut
-
-end
-wr
+  name MARKETING
+
+! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+! Porta E2/1 é o uplink
+interface Ethernet2/1
+  description Uplink-to-Leaf-2
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 50
+  no shutdown
+
+! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+! Porta E2/2 conecta os PCs
+interface Ethernet2/2
+  description PC43-VLAN50-MARKETING
+  switchport
+  switchport mode access
+  switchport access vlan 50
+  spanning-tree port type edge
+  no shutdown
