@@ -221,6 +221,9 @@ interface Ethernet2/2
   spanning-tree port type edge
   no shutdown
 
+end
+copy run start
+
 /***********************************/
     Configuracao Switch-Core-22
 /***********************************/
