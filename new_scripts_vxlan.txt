@@ -14,26 +14,28 @@ nv overlay evpn
 /***********************************/
     Configuracao Spine-1
 /***********************************/
-
 hostname Spine1
 
 ! 1. Configurar Loopback
 interface loopback0
   ip address 10.255.255.1/32
+  ip router ospf 1 area 0.0.0.0
 
 ! 2. Configurar interfaces físicas para os Leafs (como links L3)
 ! Link para o Leaf-1 (antigo Distr-21)
-interface Ethernet2/1
+interface Ethernet1/1
   no switchport
   ip address 10.0.1.1/30
   ip ospf network point-to-point
+  ip router ospf 1 area 0.0.0.0
   no shutdown
 
 ! Exemplo de link para o Leaf-2 (antigo Distr-22)
-interface Ethernet2/2
+interface Ethernet1/2
   no switchport
   ip address 10.0.2.1/30
   ip ospf network point-to-point
+  ip router ospf 1 area 0.0.0.0
   no shutdown
 
 ! Configurar OSPF
@@ -43,19 +45,19 @@ router ospf 1
 ! Configurar BGP, sendo um Route Reflector
 router bgp 65000
   router-id 10.255.255.1
-  address-family l2vpn evpn
-
-  ! Para cada Leaf, adicione os comandos abaixo
-    neighbor 10.255.255.11 remote-as 65000
+  
+  neighbor 10.255.255.11 remote-as 65000
     update-source loopback0
     address-family l2vpn evpn
-      send-community both
+      send-community
+      send-community extended
       route-reflector-client
 
-    neighbor 10.255.255.12 remote-as 65000 
+  neighbor 10.255.255.12 remote-as 65000
     update-source loopback0
     address-family l2vpn evpn
-      send-community both
+      send-community
+      send-community extended
       route-reflector-client
 
 copy running-config startup-config
@@ -69,6 +71,7 @@ hostname Spine2
 ! 1. Configurar Loopback (ID Único)
 interface loopback0
   ip address 10.255.255.2/32
+  ip router ospf 1 area 0.0.0.0
 
 ! 2. Configurar interfaces físicas para os Leafs (com IPs Únicos)
 ! Link para o Leaf-1 (antigo Distr-21) em uma NOVA sub-rede
@@ -76,6 +79,7 @@ interface Ethernet2/1
   no switchport
   ip address 10.0.3.1/30 
   ip ospf network point-to-point
+  ip router ospf 1 area 0.0.0.0
   no shutdown
 
 ! Link para o Leaf-2 (antigo Distr-22) em uma NOVA sub-rede
@@ -83,8 +87,8 @@ interface Ethernet2/2
   no switchport
   ip address 10.0.4.1/30
   ip ospf network point-to-point
+  ip router ospf 1 area 0.0.0.0
   no shutdown
-
 
 ! Configurar OSPF com Router ID ÚNICO
 router ospf 1
@@ -92,100 +96,21 @@ router ospf 1
 
 ! Configurar BGP com Router ID ÚNICO
 router bgp 65000
-  router-id 10.255.255.2 
-  address-family l2vpn evpn
+  router-id 10.255.255.2
   
-  ! Peer com TODOS os leafs
-  ! Adicione uma entrada "neighbor" para cada Leaf na sua topologia
-  neighbor 10.255.255.11 remote-as 65000 
+  neighbor 10.255.255.11 remote-as 65000
     update-source loopback0
     address-family l2vpn evpn
-      send-community both
+      send-community
+      send-community extended
       route-reflector-client
 
-  neighbor 10.255.255.12 remote-as 65000 
+  neighbor 10.255.255.12 remote-as 65000
     update-source loopback0
     address-family l2vpn evpn
-      send-community both
+      send-community
+      send-community extended
       route-reflector-client
-
-copy running-config startup-config
-
-/************************/
-    Configuracao Leaf-1
-/************************/
-
-su - root
-vsh
-conf t
-feature bash-shell
-end
-run bash
-vsh
-
-hostname Leaf1
-
-! 1. Configurar Loopback
-interface loopback0
-  ip address 10.255.255.11/32
-
-! 2. Configurar interfaces físicas para os Spines
-! Link para o Spine-1
-int e1/1
-  no switchport
-  ip address 10.0.1.2/30
-  ip ospf network point-to-point
-  no shutdown
-
-! Link para o Spine-2
-interface e1/2
-  no switchport
-  ip address 10.0.3.2/30
-  ip ospf network point-to-point
-  no shutdown
-
-! INTERFACE L2 PARA O ACCESS-LEAF-1
-interface Ethernet1/3
-  description Link-to-Access-Leaf-1
-  switchport
-  switchport mode trunk
-  switchport trunk allowed vlan 50
-  no shutdown
-
-! 3. Configurar OSPF
-router ospf 1
-  router-id 10.255.255.11
-
-! Configurar BGP para ser peer dos Spines
-router bgp 65000
-  router-id 10.255.255.11
-  neighbor 10.255.255.1 remote-as 65000
-    update-source loopback0
-    address-family l2vpn evpn
-      send-community both
-  neighbor 10.255.255.2 remote-as 65000
-    update-source loopback0
-    address-family l2vpn evpn
-      send-community both
-
-! 5. MAPEAMENTO VLAN -> VNI (Virtual Network Identifier)
-vlan 50
-  name MARKETING
-  vn-segment 10050
-
-! 6. CONFIGURAR INTERFACE VXLAN (NVE - Network Virtualization Edge)
-interface nve1
-  no shutdown
-  source-interface loopback0
-  host-reachability protocol bgp
-  member vni 10050
-    ingress-replication protocol bgp
-
-! 7. CONFIGURAR ANYCAST GATEWAY (SVI - Switched Virtual Interface)
-interface Vlan50
-  no shutdown
-  ip address 192.168.50.1/24
-  fabric forwarding mode anycast-gateway
 
 copy running-config startup-config
 
@@ -205,67 +130,83 @@ set interfaces loopback lo address '10.255.255.11/32'
 # 3. Configuração do OSPF (Protocolo de Roteamento do Underlay)
 set protocols ospf area 0 network '10.0.1.0/30'
 set protocols ospf area 0 network '10.0.3.0/30'
+set protocols ospf area 0 network '10.255.255.11/32'
 set protocols ospf parameters router-id '10.255.255.11'
 
 # 4. Configuração do BGP (Control-Plane do EVPN)
 set protocols bgp system-as '65000'
 set protocols bgp parameters router-id '10.255.255.11'
+
 set protocols bgp neighbor 10.255.255.1 remote-as '65000'
 set protocols bgp neighbor 10.255.255.1 update-source 'lo'
 set protocols bgp neighbor 10.255.255.1 address-family l2vpn-evpn
+
 set protocols bgp neighbor 10.255.255.2 remote-as '65000'
 set protocols bgp neighbor 10.255.255.2 update-source 'lo'
 set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
+
+set protocols bgp address-family l2vpn-evpn advertise-all-vni
+
+set protocols bgp address-family l2vpn-evpn vni 10050
+set protocols bgp address-family l2vpn-evpn vni 10050 rd '10.255.255.11:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 route-target export '65000:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 route-target import '65000:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 advertise-default-gw
 
 # 5. Configuração do Data-Plane (VXLAN, Bridge e VLAN)
 # Cria a interface VTEP para o VNI 10050
 set interfaces vxlan vxlan10050 vni '10050'
 set interfaces vxlan vxlan10050 source-address '10.255.255.11'
 set interfaces vxlan vxlan10050 port '4789'
+set interfaces vxlan vxlan10050 parameters nolearning
+set interfaces vxlan vxlan10050 mtu '1450'
 
 # Cria a ponte para a VLAN 50
 set interfaces bridge br50
 
 # Adiciona a porta física (para o Access-Leaf) e a interface VXLAN à ponte
-set interfaces bridge br50 member interface 'eth2'
+set interfaces bridge br50 member interface 'eth2.50'
 set interfaces bridge br50 member interface 'vxlan10050'
-
-# Informa ao BGP para anunciar este VNI
-set protocols bgp address-family l2vpn-evpn vni 10050
-
-# 6. Configuração do Anycast Gateway (SVI)
 set interfaces bridge br50 address '192.168.50.1/24'
-# Opcional, mas recomendado: Definir um MAC Fixo para o Anycast Gateway
-set interfaces bridge br50 hw-id '00:0c:29:00:50:01'
+set interfaces bridge br50 mac '00:0c:29:00:50:01'
 
-/******
-  DHCP
-*******/
-# 1. Cria o container para a sub-rede DHCP
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24
+# Habilitar proxy-arp e ip forwarding
+set interfaces bridge br50 ip enable-proxy-arp
+set interfaces bridge br50 ip enable-forwarding
 
-# 2. Define o gateway que será entregue aos PCs
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 default-router 192.168.50.1
+# Cria a interface VTEP para o VNI 10040
+set protocols bgp address-family l2vpn-evpn vni 10040
+set protocols bgp address-family l2vpn-evpn vni 10040 rd '10.255.255.11:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 route-target export '65000:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 route-target import '65000:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 advertise-default-gw
 
-# 3. Define o range de IPs para distribuição
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 start 192.168.50.100
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 stop 192.168.50.200
+set interfaces vxlan vxlan10040 vni '10040'
+set interfaces vxlan vxlan10040 source-address '10.255.255.11'
+set interfaces vxlan vxlan10040 port '4789'
+set interfaces vxlan vxlan10040 parameters nolearning
+set interfaces vxlan vxlan10040 mtu '1450'
 
-# 4. Reverter o comando que foi aceite na tentativa anterior
-delete interfaces bridge br50 enable-vlan
+# Cria a ponte para a VLAN 40
+set interfaces bridge br40
 
-# 5. Garantir que a interface física NÃO é membro da ponte
-delete interfaces bridge br50 member interface 'eth2'
+# Adiciona a porta física (para o Access-Leaf) e a interface VXLAN à ponte
+set interfaces bridge br40 member interface 'eth2.40'
+set interfaces bridge br40 member interface 'eth3.40'
+set interfaces bridge br40 member interface 'vxlan10040'
+set interfaces bridge br40 address '192.168.40.1/24'
+set interfaces bridge br40 mac '00:0c:29:00:40:01'
 
-# 6. Criar uma sub-interface (VIF) na eth2 para a VLAN 50.
-# Isto cria uma nova interface chamada 'eth2.50'
-set interfaces ethernet eth2 vif 50
+# Habilitar proxy-arp e ip forwarding
+set interfaces bridge br40 ip enable-proxy-arp
+!! set interfaces bridge br40 ip enable-forwarding
 
-# 7. Adicionar a NOVA sub-interface 'eth2.50' como membro da ponte
-set interfaces bridge br50 member interface eth2.50
+# Definir o tipo de rede OSPF nas interfaces que conectam aos Spines
+set protocols ospf interface eth0 network point-to-point
+set protocols ospf interface eth1 network point-to-point
 
-save
 commit
+save
 
 **********************************************
 # Configuração completa para o Leaf2 em VyOS
@@ -280,47 +221,86 @@ set interfaces ethernet eth0 address '10.0.2.2/30'
 set interfaces ethernet eth1 address '10.0.4.2/30'
 set interfaces loopback lo address '10.255.255.12/32'
 
-# 3. Configuração da VLAN e da Ponte (Bridge)
-# Cria a sub-interface na porta física 'eth2' para receber tráfego com tag da VLAN 50
-set interfaces ethernet eth2 vif 50
-
-# Cria a ponte
-set interfaces bridge br50
-
-# Adiciona a sub-interface da VLAN e a interface VXLAN à ponte
-set interfaces bridge br50 member interface eth2.50
-set interfaces bridge br50 member interface 'vxlan10050'
-
-# 4. Configuração do Anycast Gateway (SVI) na Ponte
-set interfaces bridge br50 address '192.168.50.1/24'
-set interfaces bridge br50 hw-id '00:0c:29:00:50:01'
-
-# 5. Configuração do Data-Plane VXLAN
-set interfaces vxlan vxlan10050 vni '10050'
-set interfaces vxlan vxlan10050 source-address '10.255.255.12'
-set interfaces vxlan vxlan10050 port '4789'
-
-# 6. Configuração do OSPF (Underlay)
+# 3. Configuração do OSPF
 set protocols ospf area 0 network '10.0.2.0/30'
 set protocols ospf area 0 network '10.0.4.0/30'
+set protocols ospf area 0 network '10.255.255.12/32'
 set protocols ospf parameters router-id '10.255.255.12'
 
-# 7. Configuração do BGP (Control-Plane EVPN)
+# 4. Configuração do BGP
 set protocols bgp system-as '65000'
 set protocols bgp parameters router-id '10.255.255.12'
+
 set protocols bgp neighbor 10.255.255.1 remote-as '65000'
 set protocols bgp neighbor 10.255.255.1 update-source 'lo'
 set protocols bgp neighbor 10.255.255.1 address-family l2vpn-evpn
+
 set protocols bgp neighbor 10.255.255.2 remote-as '65000'
 set protocols bgp neighbor 10.255.255.2 update-source 'lo'
 set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
-set protocols bgp address-family l2vpn-evpn vni 10050
 
-# 8. Configuração do Servidor DHCP (SEGUNDA METADE DO RANGE)
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 default-router 192.168.50.1
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 start 192.168.50.150
-set service dhcp-server shared-network-name MARKETING-POOL subnet 192.168.50.0/24 range 0 stop 192.168.50.200
+set protocols bgp address-family l2vpn-evpn advertise-all-vni
+
+# 6. Configuração do VNI 10050
+set protocols bgp address-family l2vpn-evpn vni 10050
+set protocols bgp address-family l2vpn-evpn vni 10050 rd '10.255.255.12:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 route-target export '65000:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 route-target import '65000:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 advertise-default-gw
+
+# 7. Configuração do VXLAN
+set interfaces vxlan vxlan10050 vni '10050'
+set interfaces vxlan vxlan10050 source-address '10.255.255.12'
+set interfaces vxlan vxlan10050 port '4789'
+set interfaces vxlan vxlan10050 parameters nolearning
+set interfaces vxlan vxlan10050 mtu '1450'
+
+# Cria a ponte para a VLAN 50
+set interfaces bridge br50
+
+# Adiciona a porta física (para o Access-Leaf) e a interface VXLAN à ponte
+set interfaces bridge br50 member interface 'eth2.50'
+set interfaces bridge br50 member interface 'eth3.50'
+set interfaces bridge br50 member interface 'vxlan10050'
+set interfaces bridge br50 address '192.168.50.1/24'
+set interfaces bridge br50 mac '00:0c:29:00:50:01'
+
+set interfaces bridge br50 ip enable-proxy-arp
+set interfaces bridge br50 ip enable-forwarding
+
+# Cria a interface VTEP para o VNI 10040
+set protocols bgp address-family l2vpn-evpn vni 10040
+set protocols bgp address-family l2vpn-evpn vni 10040 rd '10.255.255.12:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 route-target export '65000:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 route-target import '65000:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 advertise-default-gw
+
+set interfaces vxlan vxlan10040 vni '10040'
+set interfaces vxlan vxlan10040 source-address '10.255.255.12'
+set interfaces vxlan vxlan10040 port '4789'
+set interfaces vxlan vxlan10040 parameters nolearning
+set interfaces vxlan vxlan10040 mtu '1450'
+
+# Cria a ponte para a VLAN 40
+set interfaces bridge br40
+
+# Adiciona a porta física (para o Access-Leaf) e a interface VXLAN à ponte
+set interfaces bridge br40 member interface 'eth2.40'
+set interfaces bridge br40 member interface 'eth3.40'
+set interfaces bridge br40 member interface 'vxlan10040'
+set interfaces bridge br40 address '192.168.40.1/24'
+set interfaces bridge br40 mac '00:0c:29:00:40:01'
+
+# Habilitar proxy-arp e ip forwarding
+set interfaces bridge br40 ip enable-proxy-arp
+!! set interfaces bridge br40 ip enable-forwarding
+
+# Definir o tipo de rede OSPF nas interfaces que conectam aos Spines
+set protocols ospf interface eth0 network point-to-point
+set protocols ospf interface eth1 network point-to-point
+
+save
+commit
 
 /*****************************/
     Configuracao Access-Leaf-1
@@ -332,6 +312,10 @@ hostname AccessLeaf1
 feature interface-vlan
 
 ! 2. CRIAR A VLAN
+vlan 30
+  name ELECTRIC
+vlan 40
+  name HR
 vlan 50
   name MARKETING
 
@@ -354,10 +338,29 @@ interface Ethernet2/2
   spanning-tree port type edge
   no shutdown
 
+interface Ethernet2/3
+  description PCs-VLAN40-HR
+  switchport
+  switchport mode access
+  switchport access vlan 40
+  spanning-tree port type edge
+  no shutdown
+
+interface Ethernet2/4
+  description PCs-VLAN30-ELECTRIC
+  switchport
+  switchport mode access
+  switchport access vlan 30
+  spanning-tree port type edge
+  no shutdown
+
+copy running-config startup-config
 
 /*****************************/
     Configuracao Access-Leaf-2
 /*****************************/
+
+conf t
 
 hostname AccessLeaf2
 
@@ -386,3 +389,69 @@ interface Ethernet2/2
   switchport access vlan 50
   spanning-tree port type edge
   no shutdown
+
+copy running-config startup-config
+
+/*****************************/
+    Configuracao Access-Leaf-3
+/*****************************/
+
+hostname AccessLeaf3
+
+! 1. HABILITAR FEATURES BÁSICAS
+feature interface-vlan
+
+! 2. CRIAR A VLAN
+vlan 30
+  name ELECTRIC
+vlan 40
+  name HR
+vlan 50
+  name MARKETING
+
+! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+! Porta E2/1 é o uplink
+interface Ethernet2/1
+  description Uplink-to-Leaf-1
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 10,20,30,40,50
+  no shutdown
+
+! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+! Porta E2/2 conecta os PCs
+interface Ethernet2/2
+  description PCs-VLAN50-MARKETING
+  switchport
+  switchport mode access
+  switchport access vlan 50
+  spanning-tree port type edge
+  no shutdown
+
+interface Ethernet2/3
+  description PCs-VLAN40-HR
+  switchport
+  switchport mode access
+  switchport access vlan 40
+  spanning-tree port type edge
+  no shutdown
+
+interface Ethernet2/4
+  description PCs-VLAN30-ELECTRIC
+  switchport
+  switchport mode access
+  switchport access vlan 30
+  spanning-tree port type edge
+  no shutdown
+
+copy running-config startup-config
+
+/*****************************/
+    Configuracao VPCS
+/*****************************/
+
+! PC43
+ip 192.168.50.43/24 192.168.50.1
+
+! PC45
+ip 192.168.50.45/24 192.168.50.1
