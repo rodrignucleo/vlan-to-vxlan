@@ -450,6 +450,89 @@ interface Ethernet2/4
 
 copy running-config startup-config
 
+/************************
+    Access Leaf IOL
+*************************/
+/*****************************/
+    Configuracao Access-Leaf-1
+/*****************************/
+
+hostname AccessLeaf1
+
+! 2. CRIAR A VLAN
+vlan 30
+  name ELECTRIC
+vlan 40
+  name HR
+vlan 50
+  name MARKETING
+
+! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+! Porta E2/1 é o uplink
+interface Ethernet0/0
+  description Uplink-to-Leaf-1
+  switchport trunk encap dot1q
+  switchport mode trunk
+  switchport trunk allowed vlan 30,40,50
+  no shutdown
+
+! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+! Porta E2/2 conecta os PCs
+interface Ethernet0/1
+  description PCs-VLAN50-MARKETING
+  switchport mode access
+  switchport access vlan 50
+  spanning-tree portfast
+  no shutdown
+
+interface Ethernet0/2
+  description PCs-VLAN40-HR
+  switchport mode access
+  switchport access vlan 40
+  spanning-tree portfast
+  no shutdown
+
+interface Ethernet0/3
+  description PCs-VLAN30-ELECTRIC
+  switchport mode access
+  switchport access vlan 30
+  spanning-tree portfast
+  no shutdown
+
+end
+wr
+
+/*****************************/
+    Configuracao Access-Leaf-2
+/*****************************/
+
+conf t
+hostname AccessLeaf2
+
+! 2. CRIAR A VLAN
+vlan 50
+  name MARKETING
+
+! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+! Porta E2/1 é o uplink
+interface Ethernet2/1
+  description Uplink-to-Leaf-2
+  switchport mode trunk
+  switchport trunk allowed vlan 50
+  no shutdown
+
+! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+! Porta E2/2 conecta os PCs
+interface Ethernet2/2
+  description PC43-VLAN50-MARKETING
+  switchport mode access
+  switchport access vlan 50
+  spanning-tree portfast
+  no shutdown
+
+end
+wr
+
 /*****************************/
     Configuracao VPCS
 /*****************************/
