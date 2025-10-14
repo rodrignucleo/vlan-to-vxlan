@@ -11,6 +11,9 @@ feature nv overlay
 ! Habilitar EVPN
 nv overlay evpn
 
+!Configuracao Spines nx-os 7000 titanium
+-machine type=pc-1.0,accel=kvm -cpu host,pmu=off -vga std -serial mon:stdio -nographic -rtc base=utc -no-hpet -smp 4,sockets=2,cores=2,threads=1
+
 /***********************************/
     Configuracao Spine-1
 /***********************************/
@@ -23,7 +26,7 @@ interface loopback0
 
 ! 2. Configurar interfaces físicas para os Leafs (como links L3)
 ! Link para o Leaf-1 (antigo Distr-21)
-interface Ethernet1/1
+interface Ethernet2/1
   no switchport
   ip address 10.0.1.1/30
   ip ospf network point-to-point
@@ -31,7 +34,7 @@ interface Ethernet1/1
   no shutdown
 
 ! Exemplo de link para o Leaf-2 (antigo Distr-22)
-interface Ethernet1/2
+interface Ethernet2/2
   no switchport
   ip address 10.0.2.1/30
   ip ospf network point-to-point
@@ -166,6 +169,7 @@ set interfaces bridge br50
 
 # Adiciona a porta física (para o Access-Leaf) e a interface VXLAN à ponte
 set interfaces bridge br50 member interface 'eth2.50'
+set interfaces bridge br50 member interface 'eth3.50'
 set interfaces bridge br50 member interface 'vxlan10050'
 set interfaces bridge br50 address '192.168.50.1/24'
 set interfaces bridge br50 mac '00:0c:29:00:50:01'
