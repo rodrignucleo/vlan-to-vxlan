@@ -288,7 +288,6 @@ set protocols ospf parameters router-id '10.255.255.12'
 set protocols ospf interface eth0 network point-to-point
 set protocols ospf interface eth1 network point-to-point
 
-
 # 4. Configuração do BGP
 set protocols bgp system-as '65000'
 set protocols bgp parameters router-id '10.255.255.12'
@@ -371,13 +370,13 @@ set interfaces bridge br30 mac '00:0c:29:00:30:01'
 
 # VLAN 40 - HR
 set protocols bgp address-family l2vpn-evpn vni 10040
-set protocols bgp address-family l2vpn-evpn vni 10040 rd '10.255.255.11:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 rd '10.255.255.12:10040'
 set protocols bgp address-family l2vpn-evpn vni 10040 route-target export '65000:10040'
 set protocols bgp address-family l2vpn-evpn vni 10040 route-target import '65000:10040'
 set protocols bgp address-family l2vpn-evpn vni 10040 advertise-default-gw
 
 set interfaces vxlan vxlan10040 vni '10040'
-set interfaces vxlan vxlan10040 source-address '10.255.255.11'
+set interfaces vxlan vxlan10040 source-address '10.255.255.12'
 set interfaces vxlan vxlan10040 port '4789'
 set interfaces vxlan vxlan10040 parameters nolearning
 set interfaces vxlan vxlan10040 mtu '1450'
@@ -416,6 +415,7 @@ set interfaces bridge br50 mac '00:0c:29:00:50:01'
 commit
 save
 
+show ip ospf neighbor
 /******************************
     Access Leaf Cisco IOL
 *******************************/
@@ -425,6 +425,10 @@ save
 hostname AccessLeaf1
 
 ! 2. CRIAR A VLAN
+vlan 10
+  name FINANCE
+vlan 20
+  name IT
 vlan 30
   name ELECTRIC
 vlan 40
@@ -438,7 +442,7 @@ interface Ethernet0/0
   description Uplink-to-Leaf-1
   switchport trunk encap dot1q
   switchport mode trunk
-  switchport trunk allowed vlan 30,40,50
+  switchport trunk allowed vlan 10,20,30,40,50
   no shutdown
 
 ! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
@@ -475,6 +479,14 @@ conf t
 hostname AccessLeaf2
 
 ! 2. CRIAR A VLAN
+vlan 10
+  name FINANCE
+vlan 20
+  name IT
+vlan 30
+  name ELECTRIC
+vlan 40
+  name HR
 vlan 50
   name MARKETING
 
@@ -552,6 +564,71 @@ interface Ethernet1/0
   description PCs-VLAN30-ELECTRIC
   switchport mode access
   switchport access vlan 30
+  spanning-tree portfast
+  no shutdown
+
+end
+wr
+
+/******************************/
+    Configuracao Access-Leaf-20
+/******************************/
+hostname AccessLeaf20
+
+! 2. CRIAR A VLAN
+vlan 10
+  name FINANCE
+vlan 20
+  name IT
+vlan 30
+  name ELECTRIC
+vlan 40
+  name HR
+vlan 50
+  name MARKETING
+
+! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
+interface Ethernet0/0
+  description Uplink-to-Leaf-2
+  switchport trunk encap dot1q
+  switchport mode trunk
+  switchport trunk allowed vlan 10,20,30,40,50
+  no shutdown
+
+! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
+int range e0/1-2
+  switchport mode access
+  switchport access vlan 10
+  spanning-tree portfast
+  no shutdown
+
+int range e2/0-1
+  switchport mode access
+  switchport access vlan 30
+  spanning-tree portfast
+  no shutdown
+
+int range e1/2-3
+  switchport mode access
+  switchport access vlan 40
+  spanning-tree portfast
+  no shutdown
+
+int e0/3
+  switchport mode access
+  switchport access vlan 20
+  spanning-tree portfast
+  no shutdown
+
+int e1/0
+  switchport mode access
+  switchport access vlan 20
+  spanning-tree portfast
+  no shutdown
+
+int e2/2
+  switchport mode access
+  switchport access vlan 50
   spanning-tree portfast
   no shutdown
 
