@@ -102,7 +102,7 @@ router bgp 65000
 end
 
 /***********************************/
-    Configuracao Spines nx-OS
+    Configuracao Nx-OS
 /***********************************/
 license grace-period
 
@@ -116,112 +116,6 @@ feature nv overlay
 
 ! Habilitar EVPN
 nv overlay evpn
-
-!Configuracao Spines nx-os 7000 titanium
--machine type=pc-1.0,accel=kvm -cpu host,pmu=off -vga std -serial mon:stdio -nographic -rtc base=utc -no-hpet -smp 4,sockets=2,cores=2,threads=1
-
-/***********************************/
-    Configuracao Spine-1
-/***********************************/
-hostname Spine1
-
-! 1. Configurar Loopback
-interface loopback0
-  ip address 10.255.255.1/32
-  ip router ospf 1 area 0.0.0.0
-
-! 2. Configurar interfaces físicas para os Leafs (como links L3)
-! Link para o Leaf-1 (antigo Distr-21)
-interface Ethernet2/1
-  no switchport
-  ip address 10.0.1.1/30
-  ip ospf network point-to-point
-  ip router ospf 1 area 0.0.0.0
-  no shutdown
-
-! Exemplo de link para o Leaf-2 (antigo Distr-22)
-interface Ethernet2/2
-  no switchport
-  ip address 10.0.2.1/30
-  ip ospf network point-to-point
-  ip router ospf 1 area 0.0.0.0
-  no shutdown
-
-! Configurar OSPF
-router ospf 1
-  router-id 10.255.255.1
-
-! Configurar BGP, sendo um Route Reflector
-router bgp 65000
-  router-id 10.255.255.1
-  
-  neighbor 10.255.255.11 remote-as 65000
-    update-source loopback0
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-
-  neighbor 10.255.255.12 remote-as 65000
-    update-source loopback0
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-
-copy running-config startup-config
-
-/***********************************/
-    Configuracao Spine-2
-/***********************************/
-
-hostname Spine2
-
-! 1. Configurar Loopback (ID Único)
-interface loopback0
-  ip address 10.255.255.2/32
-  ip router ospf 1 area 0.0.0.0
-
-! 2. Configurar interfaces físicas para os Leafs (com IPs Únicos)
-! Link para o Leaf-1 (antigo Distr-21) em uma NOVA sub-rede
-interface Ethernet2/1
-  no switchport
-  ip address 10.0.3.1/30 
-  ip ospf network point-to-point
-  ip router ospf 1 area 0.0.0.0
-  no shutdown
-
-! Link para o Leaf-2 (antigo Distr-22) em uma NOVA sub-rede
-interface Ethernet2/2
-  no switchport
-  ip address 10.0.4.1/30
-  ip ospf network point-to-point
-  ip router ospf 1 area 0.0.0.0
-  no shutdown
-
-! Configurar OSPF com Router ID ÚNICO
-router ospf 1
-  router-id 10.255.255.2 
-
-! Configurar BGP com Router ID ÚNICO
-router bgp 65000
-  router-id 10.255.255.2
-  
-  neighbor 10.255.255.11 remote-as 65000
-    update-source loopback0
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-
-  neighbor 10.255.255.12 remote-as 65000
-    update-source loopback0
-    address-family l2vpn evpn
-      send-community
-      send-community extended
-      route-reflector-client
-
-copy running-config startup-config
 
 **********************************************
 # Configuração completa para o Leaf1 em VyOS
@@ -309,7 +203,7 @@ set interfaces bridge br40 mac '00:0c:29:00:40:01'
 
 # Habilitar proxy-arp e ip forwarding
 set interfaces bridge br40 ip enable-proxy-arp
-!! set interfaces bridge br40 ip enable-forwarding
+!! nao funciona set interfaces bridge br40 ip enable-forwarding
 
 # Definir o tipo de rede OSPF nas interfaces que conectam aos Spines
 set protocols ospf interface eth0 network point-to-point
@@ -403,7 +297,7 @@ set interfaces bridge br40 mac '00:0c:29:00:40:01'
 
 # Habilitar proxy-arp e ip forwarding
 set interfaces bridge br40 ip enable-proxy-arp
-!! set interfaces bridge br40 ip enable-forwarding
+!! nao funciona set interfaces bridge br40 ip enable-forwarding
 
 # Definir o tipo de rede OSPF nas interfaces que conectam aos Spines
 set protocols ospf interface eth0 network point-to-point
@@ -412,157 +306,12 @@ set protocols ospf interface eth1 network point-to-point
 save
 commit
 
+/******************************
+    Access Leaf Cisco IOL
+*******************************/
 /*****************************/
     Configuracao Access-Leaf-1
 /*****************************/
-
-hostname AccessLeaf1
-
-! 1. HABILITAR FEATURES BÁSICAS
-feature interface-vlan
-
-! 2. CRIAR A VLAN
-vlan 30
-  name ELECTRIC
-vlan 40
-  name HR
-vlan 50
-  name MARKETING
-
-! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
-! Porta E2/1 é o uplink
-interface Ethernet2/1
-  description Uplink-to-Leaf-1
-  switchport
-  switchport mode trunk
-  switchport trunk allowed vlan 50
-  no shutdown
-
-! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
-! Porta E2/2 conecta os PCs
-interface Ethernet2/2
-  description PCs-VLAN50-MARKETING
-  switchport
-  switchport mode access
-  switchport access vlan 50
-  spanning-tree port type edge
-  no shutdown
-
-interface Ethernet2/3
-  description PCs-VLAN40-HR
-  switchport
-  switchport mode access
-  switchport access vlan 40
-  spanning-tree port type edge
-  no shutdown
-
-interface Ethernet2/4
-  description PCs-VLAN30-ELECTRIC
-  switchport
-  switchport mode access
-  switchport access vlan 30
-  spanning-tree port type edge
-  no shutdown
-
-copy running-config startup-config
-
-/*****************************/
-    Configuracao Access-Leaf-2
-/*****************************/
-
-conf t
-
-hostname AccessLeaf2
-
-! 1. HABILITAR FEATURES BÁSICAS
-feature interface-vlan
-
-! 2. CRIAR A VLAN
-vlan 50
-  name MARKETING
-
-! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
-! Porta E2/1 é o uplink
-interface Ethernet2/1
-  description Uplink-to-Leaf-2
-  switchport
-  switchport mode trunk
-  switchport trunk allowed vlan 50
-  no shutdown
-
-! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
-! Porta E2/2 conecta os PCs
-interface Ethernet2/2
-  description PC43-VLAN50-MARKETING
-  switchport
-  switchport mode access
-  switchport access vlan 50
-  spanning-tree port type edge
-  no shutdown
-
-copy running-config startup-config
-
-/*****************************/
-    Configuracao Access-Leaf-3
-/*****************************/
-
-hostname AccessLeaf3
-
-! 1. HABILITAR FEATURES BÁSICAS
-feature interface-vlan
-
-! 2. CRIAR A VLAN
-vlan 30
-  name ELECTRIC
-vlan 40
-  name HR
-vlan 50
-  name MARKETING
-
-! 3. CONFIGURAR PORTA TRUNK PARA O LEAF-1
-! Porta E2/1 é o uplink
-interface Ethernet2/1
-  description Uplink-to-Leaf-1
-  switchport
-  switchport mode trunk
-  switchport trunk allowed vlan 10,20,30,40,50
-  no shutdown
-
-! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
-! Porta E2/2 conecta os PCs
-interface Ethernet2/2
-  description PCs-VLAN50-MARKETING
-  switchport
-  switchport mode access
-  switchport access vlan 50
-  spanning-tree port type edge
-  no shutdown
-
-interface Ethernet2/3
-  description PCs-VLAN40-HR
-  switchport
-  switchport mode access
-  switchport access vlan 40
-  spanning-tree port type edge
-  no shutdown
-
-interface Ethernet2/4
-  description PCs-VLAN30-ELECTRIC
-  switchport
-  switchport mode access
-  switchport access vlan 30
-  spanning-tree port type edge
-  no shutdown
-
-copy running-config startup-config
-
-/************************
-    Access Leaf IOL
-*************************/
-/*****************************/
-    Configuracao Access-Leaf-1
-/*****************************/
-
 hostname AccessLeaf1
 
 ! 2. CRIAR A VLAN
@@ -699,7 +448,7 @@ interface Ethernet1/0
 end
 wr
 
-
+show mac address-table
 /*****************************/
     Configuracao VPCS
 /*****************************/
