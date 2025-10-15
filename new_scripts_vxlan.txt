@@ -494,12 +494,21 @@ vlan 50
 ! Porta E2/1 é o uplink
 interface Ethernet2/1
   description Uplink-to-Leaf-2
+  switchport trunk encap dot1q
   switchport mode trunk
   switchport trunk allowed vlan 50
   no shutdown
 
-! 4. CONFIGURAR PORTA DE ACESSO PARA OS PCs
-! Porta E2/2 conecta os PCs
+! 4. CONFIGURAR PORTA DE ACESSO PARA OUTRO SWITCH
+interface Ethernet3/0
+  description Trunk-to-SWITCH-ACCESS-10
+  switchport trunk encap dot1q
+  switchport mode trunk
+  switchport trunk allowed vlan 10,20,30,40,50
+  spanning-tree portfast trunk
+  no shutdown
+
+! 5. CONFIGURAR PORTA DE ACESSO PARA OS PCs
 interface Ethernet2/2
   description PC43-VLAN50-MARKETING
   switchport mode access
@@ -629,6 +638,78 @@ int e1/0
 int e2/2
   switchport mode access
   switchport access vlan 50
+  spanning-tree portfast
+  no shutdown
+
+end
+wr
+
+/********************************/
+    Configuracao Switch-Access-10
+/********************************/
+
+hostname SwitchAccess10
+
+! 1. CRIAR TODAS AS VLANs
+vlan 10
+  name FINANCE
+vlan 20
+  name IT
+vlan 30
+  name ELECTRIC
+vlan 40
+  name HR
+vlan 50
+  name MARKETING
+
+! 2. UPLINK TRUNK PARA ACCESS-LEAF-2
+interface Ethernet3/0
+  description Uplink-to-AccessLeaf2
+  switchport trunk encapsulation dot1q
+  switchport mode trunk
+  switchport trunk allowed vlan 10,20,30,40,50
+  no shutdown
+
+! 3. PORTAS ACCESS PARA PCs
+int range e0/1-2
+  description PCs-VLAN20
+  switchport mode access
+  switchport access vlan 20
+  spanning-tree portfast
+  no shutdown
+
+int e0/3
+  description PCs-VLAN10
+  switchport mode access
+  switchport access vlan 10
+  spanning-tree portfast
+  no shutdown
+
+int e1/0
+  description PCs-VLAN10
+  switchport mode access
+  switchport access vlan 10
+  spanning-tree portfast
+  no shutdown
+
+int range e2/1-2
+  description PCs-VLAN40
+  switchport mode access
+  switchport access vlan 40
+  spanning-tree portfast
+  no shutdown
+
+int e1/3
+  description PCs-VLAN30
+  switchport mode access
+  switchport access vlan 30
+  spanning-tree portfast
+  no shutdown
+
+int e2/0
+  description PCs-VLAN30
+  switchport mode access
+  switchport access vlan 30
   spanning-tree portfast
   no shutdown
 
