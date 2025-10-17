@@ -122,25 +122,24 @@ nv overlay evpn
 ************************************
 conf
 
+
 # 1. Configurações do Sistema
 set system host-name 'Leaf1'
 
-# 2. Configuração das Interfaces de Underlay (Conexão com Spines)
+# Underlay
 set interfaces ethernet eth0 address '10.0.1.2/30'
 set interfaces ethernet eth1 address '10.0.3.2/30'
 set interfaces loopback lo address '10.255.255.11/32'
 
-# 3. Configuração do OSPF (Protocolo de Roteamento do Underlay)
+# OSPF
 set protocols ospf area 0 network '10.0.1.0/30'
 set protocols ospf area 0 network '10.0.3.0/30'
 set protocols ospf area 0 network '10.255.255.11/32'
 set protocols ospf parameters router-id '10.255.255.11'
-
-# Definir o tipo de rede OSPF nas interfaces que conectam aos Spines
 set protocols ospf interface eth0 network point-to-point
 set protocols ospf interface eth1 network point-to-point
 
-# 4. Configuração do BGP (Control-Plane do EVPN)
+# BGP
 set protocols bgp system-as '65000'
 set protocols bgp parameters router-id '10.255.255.11'
 
@@ -167,34 +166,10 @@ set interfaces vxlan vxlan10010 port '4789'
 set interfaces vxlan vxlan10010 parameters nolearning
 set interfaces vxlan vxlan10010 mtu '1450'
 
-set interfaces ethernet eth3 vif 10
-
-set interfaces bridge br10 member interface 'eth3.10'
+set interfaces bridge br10 member interface 'eth5'
 set interfaces bridge br10 member interface 'vxlan10010'
 set interfaces bridge br10 address '192.168.10.1/24'
 set interfaces bridge br10 mac '00:0c:29:00:10:01'
-
-# VLAN 20 - IT
-set protocols bgp address-family l2vpn-evpn vni 10020
-set protocols bgp address-family l2vpn-evpn vni 10020 rd '10.255.255.11:10020'
-set protocols bgp address-family l2vpn-evpn vni 10020 route-target export '65000:10020'
-set protocols bgp address-family l2vpn-evpn vni 10020 route-target import '65000:10020'
-set protocols bgp address-family l2vpn-evpn vni 10020 advertise-default-gw
-
-set interfaces vxlan vxlan10020 vni '10020'
-set interfaces vxlan vxlan10020 source-address '10.255.255.11'
-set interfaces vxlan vxlan10020 port '4789'
-set interfaces vxlan vxlan10020 parameters nolearning
-set interfaces vxlan vxlan10020 mtu '1450'
-
-set interfaces ethernet eth2 vif 20
-set interfaces ethernet eth3 vif 20
-
-set interfaces bridge br20 member interface 'eth2.20'
-set interfaces bridge br20 member interface 'eth3.20'
-set interfaces bridge br20 member interface 'vxlan10020'
-set interfaces bridge br20 address '192.168.20.1/24'
-set interfaces bridge br20 mac '00:0c:29:00:20:01'
 
 # VLAN 30 - ELECTRIC
 set protocols bgp address-family l2vpn-evpn vni 10030
@@ -209,11 +184,7 @@ set interfaces vxlan vxlan10030 port '4789'
 set interfaces vxlan vxlan10030 parameters nolearning
 set interfaces vxlan vxlan10030 mtu '1450'
 
-set interfaces ethernet eth2 vif 30
-set interfaces ethernet eth3 vif 30
-
-set interfaces bridge br30 member interface 'eth2.30'
-set interfaces bridge br30 member interface 'eth3.30'
+set interfaces bridge br30 member interface 'eth4'
 set interfaces bridge br30 member interface 'vxlan10030'
 set interfaces bridge br30 address '192.168.30.1/24'
 set interfaces bridge br30 mac '00:0c:29:00:30:01'
@@ -231,11 +202,7 @@ set interfaces vxlan vxlan10040 port '4789'
 set interfaces vxlan vxlan10040 parameters nolearning
 set interfaces vxlan vxlan10040 mtu '1450'
 
-set interfaces ethernet eth2 vif 40
-set interfaces ethernet eth3 vif 40
-
-set interfaces bridge br40 member interface 'eth2.40'
-set interfaces bridge br40 member interface 'eth3.40'
+set interfaces bridge br40 member interface 'eth3'
 set interfaces bridge br40 member interface 'vxlan10040'
 set interfaces bridge br40 address '192.168.40.1/24'
 set interfaces bridge br40 mac '00:0c:29:00:40:01'
@@ -253,11 +220,8 @@ set interfaces vxlan vxlan10050 port '4789'
 set interfaces vxlan vxlan10050 parameters nolearning
 set interfaces vxlan vxlan10050 mtu '1450'
 
-set interfaces ethernet eth2 vif 50
-set interfaces ethernet eth3 vif 50
-
-set interfaces bridge br50 member interface 'eth2.50'
-set interfaces bridge br50 member interface 'eth3.50'
+set interfaces bridge br50 member interface 'eth2'
+set interfaces bridge br50 member interface 'eth9'
 set interfaces bridge br50 member interface 'vxlan10050'
 set interfaces bridge br50 address '192.168.50.1/24'
 set interfaces bridge br50 mac '00:0c:29:00:50:01'
@@ -273,22 +237,20 @@ conf
 # 1. Configurações do Sistema
 set system host-name 'Leaf2'
 
-# 2. Configuração das Interfaces de Underlay (Conexão com Spines)
+# Underlay
 set interfaces ethernet eth0 address '10.0.2.2/30'
 set interfaces ethernet eth1 address '10.0.4.2/30'
 set interfaces loopback lo address '10.255.255.12/32'
 
-# 3. Configuração do OSPF
+# OSPF
 set protocols ospf area 0 network '10.0.2.0/30'
 set protocols ospf area 0 network '10.0.4.0/30'
 set protocols ospf area 0 network '10.255.255.12/32'
 set protocols ospf parameters router-id '10.255.255.12'
-
-# Definir o tipo de rede OSPF nas interfaces que conectam aos Spines
 set protocols ospf interface eth0 network point-to-point
 set protocols ospf interface eth1 network point-to-point
 
-# 4. Configuração do BGP
+# BGP
 set protocols bgp system-as '65000'
 set protocols bgp parameters router-id '10.255.255.12'
 
@@ -301,28 +263,6 @@ set protocols bgp neighbor 10.255.255.2 update-source 'lo'
 set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
 
 set protocols bgp address-family l2vpn-evpn advertise-all-vni
-
-# VLAN 10 - FINANCE
-set protocols bgp address-family l2vpn-evpn vni 10010
-set protocols bgp address-family l2vpn-evpn vni 10010 rd '10.255.255.12:10010'
-set protocols bgp address-family l2vpn-evpn vni 10010 route-target export '65000:10010'
-set protocols bgp address-family l2vpn-evpn vni 10010 route-target import '65000:10010'
-set protocols bgp address-family l2vpn-evpn vni 10010 advertise-default-gw
-
-set interfaces vxlan vxlan10010 vni '10010'
-set interfaces vxlan vxlan10010 source-address '10.255.255.12'
-set interfaces vxlan vxlan10010 port '4789'
-set interfaces vxlan vxlan10010 parameters nolearning
-set interfaces vxlan vxlan10010 mtu '1450'
-
-set interfaces ethernet eth2 vif 10
-set interfaces ethernet eth3 vif 10
-
-set interfaces bridge br10 member interface 'eth2.10'
-set interfaces bridge br10 member interface 'eth3.10'
-set interfaces bridge br10 member interface 'vxlan10010'
-set interfaces bridge br10 address '192.168.10.1/24'
-set interfaces bridge br10 mac '00:0c:29:00:10:01'
 
 # VLAN 20 - IT
 set protocols bgp address-family l2vpn-evpn vni 10020
@@ -337,11 +277,7 @@ set interfaces vxlan vxlan10020 port '4789'
 set interfaces vxlan vxlan10020 parameters nolearning
 set interfaces vxlan vxlan10020 mtu '1450'
 
-set interfaces ethernet eth2 vif 20
-set interfaces ethernet eth3 vif 20
-
-set interfaces bridge br20 member interface 'eth2.20'
-set interfaces bridge br20 member interface 'eth3.20'
+set interfaces bridge br20 member interface 'eth5'
 set interfaces bridge br20 member interface 'vxlan10020'
 set interfaces bridge br20 address '192.168.20.1/24'
 set interfaces bridge br20 mac '00:0c:29:00:20:01'
@@ -359,11 +295,7 @@ set interfaces vxlan vxlan10030 port '4789'
 set interfaces vxlan vxlan10030 parameters nolearning
 set interfaces vxlan vxlan10030 mtu '1450'
 
-set interfaces ethernet eth2 vif 30
-set interfaces ethernet eth3 vif 30
-
-set interfaces bridge br30 member interface 'eth2.30'
-set interfaces bridge br30 member interface 'eth3.30'
+set interfaces bridge br30 member interface 'eth4'
 set interfaces bridge br30 member interface 'vxlan10030'
 set interfaces bridge br30 address '192.168.30.1/24'
 set interfaces bridge br30 mac '00:0c:29:00:30:01'
@@ -381,11 +313,7 @@ set interfaces vxlan vxlan10040 port '4789'
 set interfaces vxlan vxlan10040 parameters nolearning
 set interfaces vxlan vxlan10040 mtu '1450'
 
-set interfaces ethernet eth2 vif 40
-set interfaces ethernet eth3 vif 40
-
-set interfaces bridge br40 member interface 'eth2.40'
-set interfaces bridge br40 member interface 'eth3.40'
+set interfaces bridge br40 member interface 'eth3'
 set interfaces bridge br40 member interface 'vxlan10040'
 set interfaces bridge br40 address '192.168.40.1/24'
 set interfaces bridge br40 mac '00:0c:29:00:40:01'
@@ -403,11 +331,7 @@ set interfaces vxlan vxlan10050 port '4789'
 set interfaces vxlan vxlan10050 parameters nolearning
 set interfaces vxlan vxlan10050 mtu '1450'
 
-set interfaces ethernet eth2 vif 50
-set interfaces ethernet eth3 vif 50
-
-set interfaces bridge br50 member interface 'eth2.50'
-set interfaces bridge br50 member interface 'eth3.50'
+set interfaces bridge br50 member interface 'eth2'
 set interfaces bridge br50 member interface 'vxlan10050'
 set interfaces bridge br50 address '192.168.50.1/24'
 set interfaces bridge br50 mac '00:0c:29:00:50:01'
