@@ -24,13 +24,22 @@ interface Ethernet2
    ip ospf network point-to-point
    no shutdown
 
+interface Ethernet3
+   description Link-to-Leaf3
+   no switchport
+   ip address 10.0.5.1/30
+   ip ospf network point-to-point
+   no shutdown
+
 router ospf 1
    router-id 10.255.255.1
    passive-interface default
    no passive-interface Ethernet1
    no passive-interface Ethernet2
+   no passive-interface Ethernet3
    network 10.0.1.0/30 area 0.0.0.0
    network 10.0.2.0/30 area 0.0.0.0
+   network 10.0.5.0/30 area 0.0.0.0
    network 10.255.255.1/32 area 0.0.0.0
 
 router bgp 65000
@@ -39,6 +48,8 @@ router bgp 65000
    neighbor 10.255.255.11 update-source Loopback0
    neighbor 10.255.255.12 remote-as 65000
    neighbor 10.255.255.12 update-source Loopback0
+   neighbor 10.255.255.13 remote-as 65000
+   neighbor 10.255.255.13 update-source Loopback0
 
    address-family evpn
       neighbor 10.255.255.11 activate
@@ -47,6 +58,9 @@ router bgp 65000
       neighbor 10.255.255.12 activate
       neighbor 10.255.255.12 send-community extended
       neighbor 10.255.255.12 route-reflector-client
+      neighbor 10.255.255.13 activate
+      neighbor 10.255.255.13 send-community extended
+      neighbor 10.255.255.13 route-reflector-client
 end
 wr
 
@@ -74,6 +88,13 @@ interface Ethernet2
    no switchport
    ip address 10.0.4.1/30
    ip ospf network point-to-point
+   no 
+   
+interface Ethernet3
+   description Link-to-Leaf3
+   no switchport
+   ip address 10.0.6.1/30
+   ip ospf network point-to-point
    no shutdown
 
 router ospf 1
@@ -81,8 +102,10 @@ router ospf 1
    passive-interface default
    no passive-interface Ethernet1
    no passive-interface Ethernet2
+   no passive-interface Ethernet3
    network 10.0.3.0/30 area 0.0.0.0
    network 10.0.4.0/30 area 0.0.0.0
+   network 10.0.6.0/30 area 0.0.0.0
    network 10.255.255.2/32 area 0.0.0.0
 
 router bgp 65000
@@ -91,6 +114,8 @@ router bgp 65000
    neighbor 10.255.255.11 update-source Loopback0
    neighbor 10.255.255.12 remote-as 65000
    neighbor 10.255.255.12 update-source Loopback0
+   neighbor 10.255.255.13 remote-as 65000
+   neighbor 10.255.255.13 update-source Loopback0
 
    address-family evpn
       neighbor 10.255.255.11 activate
@@ -99,6 +124,9 @@ router bgp 65000
       neighbor 10.255.255.12 activate
       neighbor 10.255.255.12 send-community extended
       neighbor 10.255.255.12 route-reflector-client
+      neighbor 10.255.255.13 activate
+      neighbor 10.255.255.13 send-community extended
+      neighbor 10.255.255.13 route-reflector-client
 end
 
 /***********************************/
@@ -327,6 +355,116 @@ set protocols bgp address-family l2vpn-evpn vni 10050 advertise-default-gw
 
 set interfaces vxlan vxlan10050 vni '10050'
 set interfaces vxlan vxlan10050 source-address '10.255.255.12'
+set interfaces vxlan vxlan10050 port '4789'
+set interfaces vxlan vxlan10050 parameters nolearning
+set interfaces vxlan vxlan10050 mtu '1450'
+
+set interfaces bridge br50 member interface 'eth2'
+set interfaces bridge br50 member interface 'vxlan10050'
+set interfaces bridge br50 address '192.168.50.1/24'
+set interfaces bridge br50 mac '00:0c:29:00:50:01'
+
+commit
+save
+
+**********************************************
+# Configuração completa para o Leaf2 em VyOS
+**********************************************
+conf 
+
+# 1. Configurações do Sistema
+set system host-name 'Leaf3'
+
+# Underlay
+set interfaces ethernet eth0 address '10.0.5.2/30'
+set interfaces ethernet eth1 address '10.0.6.2/30'
+set interfaces loopback lo address '10.255.255.13/32'
+
+# OSPF
+set protocols ospf area 0 network '10.0.5.0/30'
+set protocols ospf area 0 network '10.0.6.0/30'
+set protocols ospf area 0 network '10.255.255.13/32'
+set protocols ospf parameters router-id '10.255.255.13'
+set protocols ospf interface eth0 network point-to-point
+set protocols ospf interface eth1 network point-to-point
+
+# BGP
+set protocols bgp system-as '65000'
+set protocols bgp parameters router-id '10.255.255.13'
+
+set protocols bgp neighbor 10.255.255.1 remote-as '65000'
+set protocols bgp neighbor 10.255.255.1 update-source 'lo'
+set protocols bgp neighbor 10.255.255.1 address-family l2vpn-evpn
+
+set protocols bgp neighbor 10.255.255.2 remote-as '65000'
+set protocols bgp neighbor 10.255.255.2 update-source 'lo'
+set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
+
+set protocols bgp address-family l2vpn-evpn advertise-all-vni
+
+# VLAN 20 - IT
+set protocols bgp address-family l2vpn-evpn vni 10020
+set protocols bgp address-family l2vpn-evpn vni 10020 rd '10.255.255.13:10020'
+set protocols bgp address-family l2vpn-evpn vni 10020 route-target export '65000:10020'
+set protocols bgp address-family l2vpn-evpn vni 10020 route-target import '65000:10020'
+set protocols bgp address-family l2vpn-evpn vni 10020 advertise-default-gw
+
+set interfaces vxlan vxlan10020 vni '10020'
+set interfaces vxlan vxlan10020 source-address '10.255.255.13'
+set interfaces vxlan vxlan10020 port '4789'
+set interfaces vxlan vxlan10020 parameters nolearning
+set interfaces vxlan vxlan10020 mtu '1450'
+
+set interfaces bridge br20 member interface 'eth6'
+set interfaces bridge br20 member interface 'vxlan10020'
+set interfaces bridge br20 address '192.168.20.1/24'
+set interfaces bridge br20 mac '00:0c:29:00:20:01'
+
+# VLAN 30 - ELECTRIC
+set protocols bgp address-family l2vpn-evpn vni 10030
+set protocols bgp address-family l2vpn-evpn vni 10030 rd '10.255.255.13:10030'
+set protocols bgp address-family l2vpn-evpn vni 10030 route-target export '65000:10030'
+set protocols bgp address-family l2vpn-evpn vni 10030 route-target import '65000:10030'
+set protocols bgp address-family l2vpn-evpn vni 10030 advertise-default-gw
+
+set interfaces vxlan vxlan10030 vni '10030'
+set interfaces vxlan vxlan10030 source-address '10.255.255.13'
+set interfaces vxlan vxlan10030 port '4789'
+set interfaces vxlan vxlan10030 parameters nolearning
+set interfaces vxlan vxlan10030 mtu '1450'
+
+set interfaces bridge br30 member interface 'eth4'
+set interfaces bridge br30 member interface 'vxlan10030'
+set interfaces bridge br30 address '192.168.30.1/24'
+set interfaces bridge br30 mac '00:0c:29:00:30:01'
+
+# VLAN 40 - HR
+set protocols bgp address-family l2vpn-evpn vni 10040
+set protocols bgp address-family l2vpn-evpn vni 10040 rd '10.255.255.13:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 route-target export '65000:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 route-target import '65000:10040'
+set protocols bgp address-family l2vpn-evpn vni 10040 advertise-default-gw
+
+set interfaces vxlan vxlan10040 vni '10040'
+set interfaces vxlan vxlan10040 source-address '10.255.255.13'
+set interfaces vxlan vxlan10040 port '4789'
+set interfaces vxlan vxlan10040 parameters nolearning
+set interfaces vxlan vxlan10040 mtu '1450'
+
+set interfaces bridge br40 member interface 'eth3'
+set interfaces bridge br40 member interface 'vxlan10040'
+set interfaces bridge br40 address '192.168.40.1/24'
+set interfaces bridge br40 mac '00:0c:29:00:40:01'
+
+# VLAN 50 - MARKETING
+set protocols bgp address-family l2vpn-evpn vni 10050
+set protocols bgp address-family l2vpn-evpn vni 10050 rd '10.255.255.13:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 route-target export '65000:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 route-target import '65000:10050'
+set protocols bgp address-family l2vpn-evpn vni 10050 advertise-default-gw
+
+set interfaces vxlan vxlan10050 vni '10050'
+set interfaces vxlan vxlan10050 source-address '10.255.255.13'
 set interfaces vxlan vxlan10050 port '4789'
 set interfaces vxlan vxlan10050 parameters nolearning
 set interfaces vxlan vxlan10050 mtu '1450'
