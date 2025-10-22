@@ -180,6 +180,7 @@ set protocols bgp neighbor 10.255.255.2 update-source 'lo'
 set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
 
 set protocols bgp address-family l2vpn-evpn advertise-all-vni
+set protocols bgp address-family l2vpn-evpn advertise ipv4 unicast
 
 # VLAN 10 - FINANCE
 set protocols bgp address-family l2vpn-evpn vni 10010
@@ -291,6 +292,7 @@ set protocols bgp neighbor 10.255.255.2 update-source 'lo'
 set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
 
 set protocols bgp address-family l2vpn-evpn advertise-all-vni
+set protocols bgp address-family l2vpn-evpn advertise ipv4 unicast
 
 # VLAN 20 - IT
 set protocols bgp address-family l2vpn-evpn vni 10020
@@ -368,7 +370,7 @@ commit
 save
 
 **********************************************
-# Configuração completa para o Leaf2 em VyOS
+# Configuração completa para o Leaf3 em VyOS
 **********************************************
 conf 
 
@@ -400,6 +402,7 @@ set protocols bgp neighbor 10.255.255.2 remote-as '65000'
 set protocols bgp neighbor 10.255.255.2 update-source 'lo'
 set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
 
+set protocols bgp address-family l2vpn-evpn advertise ipv4 unicast
 set protocols bgp address-family l2vpn-evpn advertise-all-vni
 
 # VLAN 20 - IT
