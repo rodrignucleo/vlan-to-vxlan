@@ -54,13 +54,33 @@ router bgp 65000
    address-family evpn
       neighbor 10.255.255.11 activate
       neighbor 10.255.255.11 send-community extended
+    address-family evpn
       neighbor 10.255.255.11 route-reflector-client
+    address-family evpn
       neighbor 10.255.255.12 activate
       neighbor 10.255.255.12 send-community extended
+    address-family evpn
       neighbor 10.255.255.12 route-reflector-client
+    address-family evpn
       neighbor 10.255.255.13 activate
       neighbor 10.255.255.13 send-community extended
+    address-family evpn
       neighbor 10.255.255.13 route-reflector-client
+
+interface Ethernet1
+   bfd interval 300 min-rx 300 multiplier 3
+
+interface Ethernet2
+   bfd interval 300 min-rx 300 multiplier 3
+
+interface Ethernet3
+   bfd interval 300 min-rx 300 multiplier 3
+
+router bgp 65000
+   neighbor 10.255.255.11 bfd
+   neighbor 10.255.255.12 bfd
+   neighbor 10.255.255.13 bfd
+
 end
 wr
 
@@ -127,7 +147,23 @@ router bgp 65000
       neighbor 10.255.255.13 activate
       neighbor 10.255.255.13 send-community extended
       neighbor 10.255.255.13 route-reflector-client
+
+interface Ethernet1
+   bfd interval 300 min-rx 300 multiplier 3
+
+interface Ethernet2
+   bfd interval 300 min-rx 300 multiplier 3
+
+interface Ethernet3
+   bfd interval 300 min-rx 300 multiplier 3
+
+router bgp 65000
+   neighbor 10.255.255.11 bfd
+   neighbor 10.255.255.12 bfd
+   neighbor 10.255.255.13 bfd
+
 end
+write
 
 /***********************************/
     Configuracao Nx-OS
@@ -181,6 +217,12 @@ set protocols bgp neighbor 10.255.255.2 address-family l2vpn-evpn
 
 set protocols bgp address-family l2vpn-evpn advertise-all-vni
 set protocols bgp address-family l2vpn-evpn advertise ipv4 unicast
+
+set protocols bgp neighbor 10.255.255.1 bfd
+set protocols bgp neighbor 10.255.255.2 bfd
+
+set protocols bfd peer 10.255.255.1 multihop
+set protocols bfd peer 10.255.255.2 multihop
 
 # VLAN 10 - FINANCE
 set protocols bgp address-family l2vpn-evpn vni 10010
@@ -254,6 +296,14 @@ set interfaces bridge br50 member interface 'eth9'
 set interfaces bridge br50 member interface 'vxlan10050'
 set interfaces bridge br50 address '192.168.50.1/24'
 set interfaces bridge br50 mac '00:0c:29:00:50:01'
+
+set protocols bfd peer 10.255.255.1 interval transmit 300
+set protocols bfd peer 10.255.255.1 interval receive 300
+set protocols bfd peer 10.255.255.1 interval multiplier 3
+
+set protocols bfd peer 10.255.255.2 interval transmit 300
+set protocols bfd peer 10.255.255.2 interval receive 300
+set protocols bfd peer 10.255.255.2 interval multiplier 3
 
 commit
 save
@@ -365,6 +415,17 @@ set interfaces bridge br50 member interface 'eth2'
 set interfaces bridge br50 member interface 'vxlan10050'
 set interfaces bridge br50 address '192.168.50.1/24'
 set interfaces bridge br50 mac '00:0c:29:00:50:01'
+
+set protocols bgp neighbor 10.255.255.1 bfd
+set protocols bgp neighbor 10.255.255.2 bfd
+
+set protocols bfd peer 10.255.255.1 interval transmit 300
+set protocols bfd peer 10.255.255.1 interval receive 300
+set protocols bfd peer 10.255.255.1 interval multiplier 3
+
+set protocols bfd peer 10.255.255.2 interval transmit 300
+set protocols bfd peer 10.255.255.2 interval receive 300
+set protocols bfd peer 10.255.255.2 interval multiplier 3
 
 commit
 save
